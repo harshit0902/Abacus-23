@@ -1,0 +1,181 @@
+const bodyParser = require('body-parser')
+const exphbs = require('express-handlebars')
+const nodemailer = require('nodemailer')
+const {google} = require('googleapis')
+require('dotenv').config()
+
+const models = require("../database/models");
+const createError = require("http-errors");
+const bcrypt = require("bcrypt");
+const {userSchema, loginSchema} = require("../helpers/validation.schema");
+const {signAccessToken} = require("../helpers/jwt_helper");
+const sequelize = require("sequelize");
+
+const CLIENT_ID=process.env.GOOGLECLIENT_ID
+const CLIENT_SECRET=process.env.CLIENT_SECRET
+const REDIRECT_URI=process.env.REDIRECT_URI
+const REFRESH_TOKEN=process.env.GOOGLEREFRESH_TOKEN
+
+const oAuth2Client = new google.auth.OAuth2(CLIENT_ID, CLIENT_SECRET, REDIRECT_URI)
+oAuth2Client.setCredentials({refresh_token: REFRESH_TOKEN})
+
+exports.registerUser = async(req, res, next) => {
+    try {
+
+        console.log(req)
+
+        const result = await userSchema.validateAsync(req.body)
+
+        const user = await models.User.findOne({
+            where: {
+                email: result.email
+            }
+        });
+
+        if(user) throw createError.Conflict(`${req.body.email} is already registered`)
+
+        const salt = await bcrypt.genSalt(10)
+        const hashedPassword = await bcrypt.hash(result.password, salt)
+        result.password = hashedPassword
+
+        const savedUser = await models.User.create(result)
+        const accessToken = await signAccessToken(savedUser.email)
+
+        const accessTokenUpdate = await models.User.update(
+            {accessTokens: [accessToken]},
+            {where: {email: result.email}}
+        )
+
+        res.status(201).send({ message: "User registered successfully", accessToken: accessToken})
+
+    } catch(error) {
+
+        if(error.isJoi === true) error.status = 422;
+
+        next(error)
+    }
+}
+
+exports.loginUser = async(req, res, next) => {
+    try {
+
+        const result = await loginSchema.validateAsync(req.body)
+        
+        const user = await models.User.findOne({
+            where : {
+                email: result.email
+            }
+        })
+
+        if(!user) throw createError.BadRequest(`Invalid Username or Password`)
+
+        var passwordFlag = await bcrypt.compare(result.password, user.password)
+
+        if(!passwordFlag) throw createError.BadRequest(`Invalid Username or Password`)
+
+        var userAccessTokens = user.accessTokens
+        console.log(userAccessTokens.length)
+
+        if(userAccessTokens.length>=4) throw createError.BadRequest(`Too many logins`);
+
+        const accessToken = await signAccessToken(user.email)
+
+        const accessTokenUpdate = await models.User.update(
+            {accessTokens: sequelize.fn('array_cat', sequelize.col('accessTokens'), [accessToken])},
+            {where: {email: result.email}}
+        )
+
+        res.status(201).send({ message: "Login successful", accessToken: accessToken })
+
+    } catch(error) {
+
+        if(error.isJoi === true) return next(createError.BadRequest("Invalid Username or Password"));
+
+        next(error)
+
+    }
+}
+
+exports.logoutUser = async(req, res, next) => {
+    try {
+        
+        const accessToken = req.body.accessToken;
+
+        const accessTokenDetails = JSON.parse(Buffer.from(accessToken.split('.')[1], 'base64').toString('ascii'))
+        email = accessTokenDetails.aud
+        console.log(email)
+
+        const user = await models.User.findOne({
+            where : {
+                email: email
+            }
+        })
+
+        if(user.accessTokens.includes(accessToken) == false) throw createError.BadRequest(`Invalid request`);
+
+        const accessTokenDelete = await models.User.update(
+            {accessTokens: sequelize.fn('array_remove', sequelize.col('accessTokens'), accessToken)},
+            {where: {email: email}}
+        )
+
+        res.status(201).send({ message: "Logout successful" })
+    
+    } catch(error) {
+        next(error)
+    }
+}
+
+exports.forgotPassword = async(req, res, next) => {
+    try {
+
+        const email = req.body.email;
+
+        const user = await models.User.findOne({
+            where : {
+                email: email
+            }
+        })
+
+        if(!user) throw createError.BadRequest(`Email ID not registered`)
+        
+        async function sendMail() {
+
+            try {
+                const accessToken = await oAuth2Client.getAccessToken()
+
+                const transport = nodemailer.createTransport({
+                    service: 'gmail',
+                    auth: {
+                        type: 'OAuth2',
+                        user: process.env.USEREMAILID,
+                        clientId: CLIENT_ID,
+                        clientSecret: CLIENT_SECRET,
+                        refreshToken: REFRESH_TOKEN,
+                        accessToken: accessToken
+                    }
+                })
+
+                const mailOptions = {
+                    from:   process.env.USEREMAILID,
+                    to: email,
+                    subject: 'Password Reset',
+                    text: 'Click on the link to reset your password',
+                    html: '<p>Click on the link to reset your password</p>'
+                }
+
+                const result = await transport.sendMail(mailOptions)
+                return result
+
+            } catch(error) {
+                next(error)
+            }
+        }
+
+        sendMail()
+        .then((result) => res.status(201).send({ message: "Password reset link sent to your email ID" }))
+        .catch((error) => next(error))
+
+    } catch(error) {
+        next(error)
+    }
+}
