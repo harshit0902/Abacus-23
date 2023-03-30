@@ -18,7 +18,9 @@ module.exports = (sequelize, DataTypes) => {
     email: DataTypes.STRING,
     mobile: DataTypes.STRING,
     password: DataTypes.STRING,
-    accessTokens: DataTypes.ARRAY(DataTypes.STRING)
+    accessTokens: DataTypes.ARRAY(DataTypes.STRING),
+    otp: DataTypes.STRING,
+    otpTimestamp: DataTypes.DATE
   }, {
     sequelize,
     modelName: 'User',

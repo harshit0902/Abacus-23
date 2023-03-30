@@ -11,4 +11,6 @@ router.delete('/logout', controllers.logoutUser)
 
 router.post('/forgot-password', controllers.forgotPassword)
 
+router.post('/approve-otp', controllers.approveOtp)
+
 module.exports = router

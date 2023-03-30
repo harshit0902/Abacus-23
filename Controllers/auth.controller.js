@@ -137,6 +137,25 @@ exports.forgotPassword = async(req, res, next) => {
         })
 
         if(!user) throw createError.BadRequest(`Email ID not registered`)
+
+        // OTP
+
+        const generateRandomString = function (length=8) {
+            return Math.random().toString(20).slice(2, 2+length)
+        }
+
+        const otp = generateRandomString()
+
+        const salt = await bcrypt.genSalt(10)
+        const hashedOtp = await bcrypt.hash(otp, salt)
+
+        const userUpdate = await models.User.update(
+            {otp: hashedOtp,
+            otpTimestamp: Date()},
+            {where: {email: email}}
+        )
+
+        //
         
         async function sendMail() {
 
@@ -159,8 +178,8 @@ exports.forgotPassword = async(req, res, next) => {
                     from:   process.env.USEREMAILID,
                     to: email,
                     subject: 'Password Reset',
-                    text: 'Click on the link to reset your password',
-                    html: '<p>Click on the link to reset your password</p>'
+                    text: 'OTP to reset password',
+                    html: '<p>Your OTP is <b>'+otp+'</b></p>'
                 }
 
                 const result = await transport.sendMail(mailOptions)
@@ -172,8 +191,38 @@ exports.forgotPassword = async(req, res, next) => {
         }
 
         sendMail()
-        .then((result) => res.status(201).send({ message: "Password reset link sent to your email ID" }))
+        .then((result) => res.status(201).send({ message: "OTP is sent to your email ID" }))
         .catch((error) => next(error))
+
+    } catch(error) {
+        next(error)
+    }
+}
+
+exports.approveOtp = async(req, res, next) => {
+    try {
+
+        const email = req.body.email;
+        const otp = req.body.otp;
+
+        const user = await models.User.findOne({
+            where : {
+                email: email
+            }
+        })
+
+        if(!user) throw createError.BadRequest(`Email ID not registered`)
+
+        var otpFlag = await bcrypt.compare(otp, user.otp)
+
+        if(!otpFlag) throw createError.BadRequest(`Invalid OTP`)
+
+        var diff = new Date() - user.otpTimestamp
+        
+        if((diff/(1000*60)) > 5) throw createError.BadRequest(`OTP expired`)
+    
+        res.status(201).send({ message: "OTP verified" })
+
 
     } catch(error) {
         next(error)

@@ -10,7 +10,8 @@ module.exports ={
     "dialect": "postgres",
     "dialectOptions": {
       "ssl": true
-    }
+    },
+    "timezone": "+05:30"
   },
   "test": {
     "url": process.env.TEST_DATABASE_URL,
