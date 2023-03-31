@@ -228,3 +228,24 @@ exports.approveOtp = async(req, res, next) => {
         next(error)
     }
 }
+
+exports.resetPassword = async(req, res, next) => {
+    try {
+
+        const email = req.body.email
+        const password = req.body.password
+
+        const salt = await bcrypt.genSalt(10)
+        const hashedPassword = await bcrypt.hash(password, salt)
+
+        const userPasswordUpdate = await models.User.update(
+            {password: hashedPassword},
+            {where: {email: email}}
+        )
+
+        res.status(201).send({ message: "Password reset successful" })
+
+    } catch(error) {
+        next(error)
+    }
+}
