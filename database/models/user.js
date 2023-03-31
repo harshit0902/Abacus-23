@@ -20,7 +20,11 @@ module.exports = (sequelize, DataTypes) => {
     password: DataTypes.STRING,
     accessTokens: DataTypes.ARRAY(DataTypes.STRING),
     otp: DataTypes.STRING,
-    otpTimestamp: DataTypes.DATE
+    otpTimestamp: DataTypes.DATE,
+    year: DataTypes.INTEGER,
+    collegeName: DataTypes.STRING,
+    department: DataTypes.STRING,
+    accomodation: DataTypes.STRING
   }, {
     sequelize,
     modelName: 'User',
