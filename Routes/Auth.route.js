@@ -15,4 +15,6 @@ router.post('/approve-otp', controllers.approveOtp)
 
 router.post('/reset-password', controllers.resetPassword)
 
+router.post('/logout-all-devices', controllers.logoutAll)
+
 module.exports = router

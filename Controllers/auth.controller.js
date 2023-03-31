@@ -247,3 +247,28 @@ exports.resetPassword = async(req, res, next) => {
         next(error)
     }
 }
+
+exports.logoutAll = async(req, res, next) => {
+    try {
+
+        const email = req.body.email
+
+        const user = await models.User.findOne({
+            where : {
+                email: email
+            }
+        })
+
+        if(!user) throw createError.BadRequest(`Email ID not registered`)
+
+        const accessTokenUpdate = await models.User.update(
+            {accessTokens: []},
+            {where: {email: email}}
+        )
+
+        res.status(201).send({ message: "Logout successful from all devices" })
+
+    } catch(error) {
+        next(error)
+    }
+}
