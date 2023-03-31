@@ -22,8 +22,6 @@ oAuth2Client.setCredentials({refresh_token: REFRESH_TOKEN})
 exports.registerUser = async(req, res, next) => {
     try {
 
-        console.log(req)
-
         const result = await userSchema.validateAsync(req.body)
 
         const user = await models.User.findOne({

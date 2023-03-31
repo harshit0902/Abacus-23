@@ -6,6 +6,7 @@ require('dotenv').config()
 
 const { verifyAccessToken } = require('./Helpers/jwt_helper')
 const AuthRoute = require('./routes/Auth.route')
+const DashboardRoute = require('./routes/Dashboard.route')
 
 const app = express()
 app.use(morgan('dev'))
@@ -18,6 +19,7 @@ app.get('/', verifyAccessToken, async(req, res, next) => {
 })
 
 app.use('/auth', AuthRoute)
+app.use('/dashboard', DashboardRoute)
 
 app.use(async(req, res, next) => {
     next(createError.NotFound('This route does not exist'))
