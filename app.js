@@ -1,6 +1,7 @@
 const express = require('express')
 const morgan = require('morgan')
 const createError = require('http-errors')
+const cors = require('cors')
 require('dotenv').config()
 
 const { verifyAccessToken } = require('./Helpers/jwt_helper')
@@ -10,6 +11,7 @@ const app = express()
 app.use(morgan('dev'))
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
+app.use(cors())
 
 app.get('/', verifyAccessToken, async(req, res, next) => {
     res.send('Hello from Express')
