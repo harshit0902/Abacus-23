@@ -17,4 +17,6 @@ router.post('/reset-password', controllers.resetPassword)
 
 router.post('/logout-all-devices', controllers.logoutAll)
 
+router.post('/change-password', controllers.changePassword)
+
 module.exports = router

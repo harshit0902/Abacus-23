@@ -2,6 +2,7 @@ const bodyParser = require('body-parser')
 const exphbs = require('express-handlebars')
 const nodemailer = require('nodemailer')
 const {google} = require('googleapis')
+
 require('dotenv').config()
 
 const models = require("../database/models");
@@ -267,6 +268,41 @@ exports.logoutAll = async(req, res, next) => {
         )
 
         res.status(201).send({ message: "Logout successful from all devices" })
+
+    } catch(error) {
+        next(error)
+    }
+}
+
+exports.changePassword = async(req, res, next) => {
+    try {
+
+        const accessToken = req.body.accessToken;
+        const oldPassword = req.body.oldPassword;
+        const newPassword = req.body.newPassword;
+
+        const accessTokenDetails = JSON.parse(Buffer.from(accessToken.split('.')[1], 'base64').toString('ascii'))
+        email = accessTokenDetails.aud
+        
+        const user = await models.User.findOne({
+            where : {
+                email: email
+            }
+        })
+
+        var passwordFlag = await bcrypt.compare(oldPassword, user.password)
+
+        if(!passwordFlag) throw createError.BadRequest(`Incorrect Password`)
+
+        const salt = await bcrypt.genSalt(10)
+        const hashedPassword = await bcrypt.hash(newPassword, salt)
+
+        const passwordUpdate = await models.User.update(
+            {password: hashedPassword},
+            {where: {email: email}}
+        )
+
+        res.status(201).send({ message: "Password Updated Successfully"})
 
     } catch(error) {
         next(error)
