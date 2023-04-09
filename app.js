@@ -40,3 +40,14 @@ const PORT = process.env.PORT || 3000
 app.listen(PORT, ()=> {
     console.log(`Server running on port ${PORT}`)
 })
+
+exports.instance = new Razorpay({
+    key_id: process.env.RAZORPAY_API_KEY,
+    key_secret: process.env.RAZORPAY_APT_SECRET,
+});
+
+server.use("/api", controllers.paymentRoute);
+
+app.get("/api/getkey", (req, res) =>
+  res.status(200).json({ key: process.env.RAZORPAY_API_KEY })
+);
